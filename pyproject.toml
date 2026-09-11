@@ -1,0 +1,12 @@
+[project]
+name = "traffic-notifier"
+version = "0.1.0"
+description = "Daily check of SL Pendeltåg delays between Sundbyberg and T-Centralen"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
