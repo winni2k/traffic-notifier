@@ -27,11 +27,37 @@ key-free Trafiklab APIs:
 ## Usage
 
 ```bash
-python3 -m traffic_notifier.cli
+python3 -m traffic_notifier.cli              # check and post to Slack
+python3 -m traffic_notifier.cli --no-slack   # check and print only
 ```
 
-Prints a human-readable report and exits `1` if the segment is affected,
-`0` if it's clean.
+Exit codes:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Segment is clean |
+| `1` | Segment is affected (delays, cancellations, or a notable deviation) |
+| `2` | The check itself, or Slack delivery, failed |
+
+## Slack delivery
+
+The report is posted to `#sl-pendeltag` via a Slack **incoming webhook**. The
+webhook URL is read from the `SLACK_WEBHOOK_URL` environment variable and is
+never stored in this repo.
+
+To set it up:
+
+1. Create a Slack app at <https://api.slack.com/apps> (*From scratch*, pick
+   your workspace).
+2. Under **Incoming Webhooks**, toggle them on and *Add New Webhook to
+   Workspace*, selecting `#sl-pendeltag` as the target channel.
+3. Copy the generated `https://hooks.slack.com/services/...` URL.
+4. Add it as an environment variable named `SLACK_WEBHOOK_URL` on the Claude
+   Code environment that runs the daily Routine (Settings → Environments →
+   environment variables), so every fired session inherits it.
+
+A missing `SLACK_WEBHOOK_URL` is treated as an error (exit `2`) rather than a
+silent no-op, so a misconfiguration can't masquerade as a clean day.
 
 ## Tests
 
@@ -49,8 +75,13 @@ This check runs automatically on weekdays at 15:00 Europe/Stockholm time via
 a Claude Code Routine (scheduled trigger) that:
 
 1. Pulls this repo.
-2. Runs `python3 -m traffic_notifier.cli`.
-3. Reports the result as an email notification.
+2. Runs `python3 -m traffic_notifier.cli`, which posts the report to Slack
+   itself.
+
+Delivery deliberately lives in the script rather than in the agent: Routines
+created via the Claude Code MCP tooling can't be granted connector access in
+this org, so a fired session has no Slack tools. Posting from the script also
+makes the message deterministic and testable.
 
 The cron expression is stored in UTC and does **not** auto-adjust for
 daylight saving — it needs to be nudged by an hour at the spring/autumn

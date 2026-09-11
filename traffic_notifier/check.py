@@ -11,8 +11,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from traffic_notifier import sl_client
+
+# SL returns naive local timestamps, and this runs on a UTC host, so the
+# report's own clock has to be pinned to Stockholm or the header time
+# contradicts the departure times printed beneath it.
+STOCKHOLM = ZoneInfo("Europe/Stockholm")
 
 SITE_SUNDBYBERG = 9325
 SITE_T_CENTRALEN = 9001
@@ -150,7 +156,7 @@ def analyze_network_deviations(deviations: list[dict]) -> list[NotableDeviation]
 
 def build_report() -> Report:
     """Fetch live data from SL and build a report for the Sundbyberg <-> T-Centralen segment."""
-    now = datetime.now()
+    now = datetime.now(STOCKHOLM)
 
     sundbyberg = sl_client.get_departures(SITE_SUNDBYBERG, line=LINE_PENDELTAG)
     t_centralen = sl_client.get_departures(SITE_T_CENTRALEN, line=LINE_PENDELTAG)

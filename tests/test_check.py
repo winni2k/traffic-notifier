@@ -1,8 +1,12 @@
+from unittest.mock import patch
+
 from traffic_notifier.check import (
     DELAY_THRESHOLD_MINUTES,
+    STOCKHOLM,
     Report,
     analyze_departures,
     analyze_network_deviations,
+    build_report,
     format_report,
 )
 
@@ -87,6 +91,15 @@ def test_high_importance_network_deviation_is_notable():
     assert len(notable) == 1
     assert notable[0].header == "Buss ersätter pendeltåg"
     assert notable[0].source == "network"
+
+
+def test_report_is_timestamped_in_stockholm_not_host_time():
+    """SL returns naive Stockholm timestamps and the job runs on a UTC host, so
+    a host-local header time would contradict the departure times below it."""
+    with patch("traffic_notifier.check.sl_client.get_departures", return_value={"departures": []}):
+        with patch("traffic_notifier.check.sl_client.get_deviations", return_value=[]):
+            report = build_report()
+    assert report.checked_at.tzinfo is STOCKHOLM
 
 
 def test_format_report_when_clean():
