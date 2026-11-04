@@ -1,7 +1,7 @@
-"""Entry point: `python3 -m traffic_notifier.cli`.
+"""Entry point: `python3 -m traffic_notifier.cli [--segment NAME]`.
 
-Checks the Sundbyberg <-> T-Centralen pendeltåg segment, prints the report,
-and posts it to Slack via the webhook in SLACK_WEBHOOK_URL.
+Checks a pendeltåg segment, prints the report, and posts it to Slack via the
+webhook in SLACK_WEBHOOK_URL.
 
 Exit codes:
     0  segment is clean
@@ -16,7 +16,7 @@ import os
 import sys
 
 from traffic_notifier import slack
-from traffic_notifier.check import build_report, format_report
+from traffic_notifier.check import DEFAULT_SEGMENT, SEGMENTS, build_report, format_report
 
 EXIT_CLEAN = 0
 EXIT_AFFECTED = 1
@@ -28,6 +28,12 @@ WEBHOOK_ENV_VAR = "SLACK_WEBHOOK_URL"
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--segment",
+        choices=sorted(SEGMENTS),
+        default=DEFAULT_SEGMENT,
+        help="which segment to check (default: %(default)s)",
+    )
+    parser.add_argument(
         "--no-slack",
         action="store_true",
         help="print the report only, don't post it to Slack (for local runs)",
@@ -35,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        report = build_report()
+        report = build_report(SEGMENTS[args.segment])
     except Exception as exc:  # noqa: BLE001 - the daily job needs the reason, whatever it is
         print(f"SL check failed: {exc}", file=sys.stderr)
         return EXIT_ERROR
