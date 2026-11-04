@@ -190,6 +190,31 @@ def test_odenplan_segment_reports_inbound_delays():
     assert [d.delay_minutes for d in report.delays] == [15]
 
 
+def test_empty_board_is_inconclusive_not_clean():
+    """Observed live: SL answers 200 with an empty departures array under rate
+    limiting. Reporting that as "no delays" is a false all-clear."""
+    with patch("traffic_notifier.check.sl_client.get_departures", return_value={"departures": []}):
+        with patch("traffic_notifier.check.sl_client.get_deviations", return_value=[]):
+            report = build_report(SEGMENTS["odenplan"])
+    assert report.departures_checked == 0
+    assert report.is_inconclusive
+    assert not report.is_affected
+
+    text = format_report(report)
+    assert "could NOT be checked" in text
+    assert "No delays" not in text
+
+
+def test_a_checked_board_with_nothing_wrong_is_not_inconclusive():
+    report = Report(
+        segment_label="Sundbyberg -> Odenplan",
+        checked_at=__import__("datetime").datetime(2026, 11, 4, 7, 50),
+        departures_checked=3,
+    )
+    assert not report.is_inconclusive
+    assert "No delays" in format_report(report)
+
+
 def test_format_report_names_the_segment():
     from datetime import datetime
 

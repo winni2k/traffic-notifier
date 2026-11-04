@@ -137,6 +137,18 @@ class Report:
     def is_affected(self) -> bool:
         return bool(self.delays or self.cancellations or self.deviations)
 
+    @property
+    def is_inconclusive(self) -> bool:
+        """An empty board proves nothing, so it must not read as "no delays".
+
+        At the times these checks run, line 43 always has departures. SL has
+        been observed answering HTTP 200 with an empty `departures` array
+        (under rate limiting) rather than an error, and a false all-clear is
+        the worst failure here: you read "no delays" and walk to a station
+        with no trains.
+        """
+        return self.departures_checked == 0
+
 
 def _parse_time(value: str) -> datetime:
     return datetime.fromisoformat(value)
@@ -263,6 +275,10 @@ def build_report(segment: Segment) -> Report:
 
 def format_report(report: Report) -> str:
     lines = [f"SL Pendeltåg (line 43) {report.segment_label} — {report.checked_at:%Y-%m-%d %H:%M}"]
+
+    if report.is_inconclusive:
+        lines.append("❓ SL returned no departures at all, so this segment could NOT be checked. Treat as unknown, not clear.")
+        return "\n".join(lines)
 
     if not report.is_affected:
         lines.append(f"✅ No delays or disruptions found ({report.departures_checked} departures checked).")

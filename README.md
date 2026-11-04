@@ -63,7 +63,16 @@ Exit codes:
 | --- | --- |
 | `0` | Segment is clean |
 | `1` | Segment is affected (delays, cancellations, or a notable deviation) |
-| `2` | The check itself, or Slack delivery, failed |
+| `2` | The check itself, or Slack delivery, failed, or the segment could not be verified |
+
+### An empty board is never "clean"
+
+If SL returns no departures at all, the report says the segment could **not**
+be checked and exits `2`. SL has been seen answering `HTTP 200` with an empty
+`departures` array instead of a `429` under rate limiting, and at the times
+these checks run line 43 always has departures. A false all-clear is the worst
+failure mode here — you read "no delays" and walk to a station with no trains
+— so an unverifiable segment takes the same path as any other failure.
 
 ## Slack delivery
 
