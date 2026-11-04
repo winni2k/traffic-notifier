@@ -64,6 +64,21 @@ def test_slack_failure_is_reported_as_an_error(monkeypatch):
             assert cli.main([]) == cli.EXIT_ERROR
 
 
+def test_inconclusive_report_exits_as_an_error_but_still_posts(monkeypatch):
+    """The user should see "couldn't check" in Slack rather than silence, and
+    the non-zero exit gets the Routine to retry and flag it."""
+    monkeypatch.setenv(cli.WEBHOOK_ENV_VAR, "https://hooks.slack.com/services/x")
+    empty = Report(
+        segment_label="Sundbyberg -> Odenplan",
+        checked_at=datetime(2026, 11, 4, 7, 50),
+        departures_checked=0,
+    )
+    with patch.object(cli, "build_report", return_value=empty):
+        with patch.object(cli.slack, "post") as post:
+            assert cli.main([]) == cli.EXIT_ERROR
+    assert "could NOT be checked" in post.call_args[0][1]
+
+
 def test_bare_invocation_still_checks_tcentralen(monkeypatch):
     """The afternoon Routine runs the CLI with no arguments, so the default
     segment must not drift."""

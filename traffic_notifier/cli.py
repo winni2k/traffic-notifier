@@ -60,6 +60,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Slack delivery failed: {exc}", file=sys.stderr)
             return EXIT_ERROR
 
+    # An unverifiable segment is a failed check, not a clean one, so it takes
+    # the same path as any other failure: the Routine retries, then says so.
+    if report.is_inconclusive:
+        return EXIT_ERROR
     return EXIT_AFFECTED if report.is_affected else EXIT_CLEAN
 
 
