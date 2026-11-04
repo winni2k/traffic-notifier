@@ -2,11 +2,16 @@ from datetime import datetime
 from unittest.mock import patch
 
 from traffic_notifier import cli
-from traffic_notifier.check import DelayedDeparture, Report
+from traffic_notifier.check import SEGMENTS, DelayedDeparture, Report
 
-CLEAN_REPORT = Report(checked_at=datetime(2026, 9, 11, 15, 0), departures_checked=12)
+CLEAN_REPORT = Report(
+    segment_label="Sundbyberg <-> T-Centralen",
+    checked_at=datetime(2026, 9, 11, 15, 0),
+    departures_checked=12,
+)
 
 AFFECTED_REPORT = Report(
+    segment_label="Sundbyberg <-> T-Centralen",
     checked_at=datetime(2026, 9, 11, 15, 0),
     departures_checked=12,
     delays=[
@@ -57,6 +62,24 @@ def test_slack_failure_is_reported_as_an_error(monkeypatch):
     with patch.object(cli, "build_report", return_value=CLEAN_REPORT):
         with patch.object(cli.slack, "post", side_effect=cli.slack.SlackDeliveryError("boom")):
             assert cli.main([]) == cli.EXIT_ERROR
+
+
+def test_bare_invocation_still_checks_tcentralen(monkeypatch):
+    """The afternoon Routine runs the CLI with no arguments, so the default
+    segment must not drift."""
+    monkeypatch.setenv(cli.WEBHOOK_ENV_VAR, "https://hooks.slack.com/services/x")
+    with patch.object(cli, "build_report", return_value=CLEAN_REPORT) as build:
+        with patch.object(cli.slack, "post"):
+            cli.main([])
+    assert build.call_args[0][0] is SEGMENTS["tcentralen"]
+
+
+def test_segment_flag_selects_the_odenplan_segment(monkeypatch):
+    monkeypatch.setenv(cli.WEBHOOK_ENV_VAR, "https://hooks.slack.com/services/x")
+    with patch.object(cli, "build_report", return_value=CLEAN_REPORT) as build:
+        with patch.object(cli.slack, "post"):
+            cli.main(["--segment", "odenplan"])
+    assert build.call_args[0][0] is SEGMENTS["odenplan"]
 
 
 def test_sl_api_failure_is_reported_as_an_error(monkeypatch):
